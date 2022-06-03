@@ -3,10 +3,9 @@ const ytdl = require("ytdl-core");
 const youtubesearchapi = require("youtube-search-api");
 const queue = new Map();
 
-async function execute(message, serverQueue) {
+async function execute(message, serverQueue, argsMessage) {
   try {
-    const args = message.content.split(" ");
-    const search = setupSearchInfo(args.length);
+    const args = argsMessage;
     const voiceChannel = message.member.voice.channel;
     if (!voiceChannel) {
       return message.channel.send(
@@ -28,7 +27,7 @@ async function execute(message, serverQueue) {
       return message.channel.send(`${errm}У меня нет прав на вашем сервере`);
     }
 
-    const songInfo = await getInfo(args[search], message);
+    const songInfo = await getInfo(args, message);
     const song = {
       title: songInfo.videoDetails.title,
       url: songInfo.videoDetails.video_url,
@@ -48,18 +47,18 @@ async function execute(message, serverQueue) {
 
       queue.set(message.guild.id, queueContruct);
       queueContruct.songs.push(song);
-
       try {
         var connection = await voiceChannel.join();
         queueContruct.connection = connection;
-        play(message.guild, queueContruct.songs[0]);
+        play(message.guild,queueContruct.songs[0]);
       } catch (err) {
         console.log(err);
         queue.delete(message.guild.id);
         return message.channel.send(`${this.err}${err}`);
       }
     } else {
-      serverQueue.songs.push(song);
+      serverQueue.songs.push(song)
+      if(serverQueue.repeat) {serverQueue.savedsongs.push(song)};
       return message.channel.send(
         `${suc}${song.title} была добавлена в очередь!`
       );
@@ -67,11 +66,6 @@ async function execute(message, serverQueue) {
   } catch (err) {
     console.error(err);
   }
-}
-function setupSearchInfo(count) {
-  if (count > 2) {
-    return 2;
-  } else return 1;
 }
 async function getInfo(search, message) {
   try {
@@ -87,7 +81,7 @@ async function getInfo(search, message) {
     try {
       try {
         var response;
-        const filter = (mes) => mes.content > 0 && mes.content < 6;
+        const filter = (mes) => mes.content > 0 && mes.content < 6 && mes.author===message.author;
         await message.channel
           .awaitMessages(filter, {
             max: 1,
@@ -95,6 +89,8 @@ async function getInfo(search, message) {
             errors: ["time"],
           })
           .then((collected) => {
+            console.log(collected);
+            console.log(collected.first().author);
             response = collected.first();
             return;
           })
@@ -107,7 +103,6 @@ async function getInfo(search, message) {
       } catch (err) {
         console.error(err);
       }
-      console.log(response);
       const videoIndex = parseInt(response.content);
       const songInfo = await ytdl.getInfo(res.items[videoIndex - 1].id);
       return songInfo;
@@ -117,13 +112,13 @@ async function getInfo(search, message) {
   }
 }
 function skip(message, serverQueue) {
-  console.log(serverQueue);
   if (!message.member.voice.channel) {
     return message.channel.send(
       `${errm}${req}Войдите голсовой-канал, чтобы пропустить!`
     );
   }
   if (!serverQueue) return message.channel.send(`${errm}Нечего пропускать!`);
+  serverQueue
   serverQueue.connection.dispatcher.end();
   
 }
@@ -141,6 +136,7 @@ function stop(message, serverQueue) {
 }
 
 function repeat(message, serverQueue) {
+  console.log(serverQueue);
   if (serverQueue.repeat) {
     stoprepeat(message, serverQueue);
     return;
@@ -152,7 +148,7 @@ function repeat(message, serverQueue) {
       );
     }
     if (!serverQueue) return message.channel.send(`${errm}Нечего повторять!`);
-    serverQueue.savedsongs = serverQueue.songs;
+    serverQueue.savedsongs = serverQueue.songs.map((song)=>song);
     serverQueue.textChannel.send(`${suc}Повтор включен`);
   }
 }
@@ -167,8 +163,9 @@ function stoprepeat(message, serverQueue) {
   serverQueue.savedsongs = [];
   serverQueue.textChannel.send(`${suc}Повтор выключен`);
 }
-function play(guild, song) {
+function play(guild,song) {
   const serverQueue = queue.get(guild.id);
+  console.log(serverQueue);
   if (!song) {
     serverQueue.voiceChannel.leave();
     queue.delete(guild.id);
@@ -177,10 +174,10 @@ function play(guild, song) {
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url))
     .on("finish", () => {
-      if (serverQueue.repeat)
-        if (serverQueue.songs.length === 0)
-          serverQueue.songs = serverQueue.savedsongs;
       serverQueue.songs.shift();
+      if (serverQueue.repeat){
+        if (serverQueue.songs.length === 0){
+          serverQueue.songs = serverQueue.savedsongs.map((song)=>song)}};
       play(guild, serverQueue.songs[0]);
     })
     .on("error", (error) => console.error(error));

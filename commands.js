@@ -1,76 +1,74 @@
-const { prefix, err, adv } = require("./config.json");
+const { prefix, errm, adv } = require("./config.json");
 const { execute, skip, stop, repeat, queue } = require("./musicPart.js");
-const comands_list = [
+const commands_list = [
   {
-    name: "Help",
+    name: "help",
     about: "Показать данный текст.",
     alies: ["h", "hp"],
+    func: help,
   },
   {
     name: "play",
     about: "Играть музыку.",
     alies: ["p", "pl"],
+    func: execute,
   },
   {
     name: "stop",
     about: "Остановить музыку.",
     alies: ["st"],
+    func: stop,
   },
   {
     name: "repeat",
     about: "Повторять музыку.",
     alies: ["r", "re"],
+    func: repeat,
   },
   {
     name: "skip",
     about: "Пропустить музыку.",
     alies: ["s", "sk"],
+    func: skip,
   },
 ];
 function executioner(message) {
-  const mesg = message.content.replace(/\s/g, "");
+  regexpStr = /^(?<prefix>\>\>)\s*(?<command>\S+)\s*(?<args>[^\n]*)$/;
+  const regex = new RegExp(regexpStr);
+  const groups = message.content.match(regex).groups;
+  const prefixMessage = groups.prefix;
+  const commandMessage = groups.command;
+  const argsMessage = groups.args;
   const serverQueue = queue.get(message.guild.id);
-  if (
-    mesg.startsWith(`${prefix}${comands_list[1].name}`) ||
-    mesg.startsWith(`${prefix}${comands_list[1].alies[0]}`) ||
-    mesg.startsWith(`${prefix}${comands_list[1].alies[1]}`)
-  ) {
-    execute(message, serverQueue);
-    return;
-  } else if (
-    mesg.startsWith(`${prefix}skip`) ||
-    mesg.startsWith(`${prefix}${comands_list[4].alies[0]}`) ||
-    mesg.startsWith(`${prefix}${comands_list[4].alies[1]}`)
-  ) {
-    skip(message, serverQueue);
-    return;
-  } else if (
-    mesg.startsWith(`${prefix}stop`) ||
-    mesg.startsWith(`${prefix}${comands_list[2].alies[0]}`)
-  ) {
-    stop(message, serverQueue);
-    return;
-  } else if (
-    mesg.startsWith(`${prefix}repeat`) ||
-    mesg.startsWith(`${prefix}${comands_list[3].alies[0]}`) ||
-    mesg.startsWith(`${prefix}${comands_list[3].alies[1]}`)
-  ) {
-    repeat(message, serverQueue);
-    return;
-  } else if (
-    mesg.startsWith(`${prefix}help`) ||
-    mesg.startsWith(`${prefix}${comands_list[0].alies[0]}`) ||
-    mesg.startsWith(`${prefix}${comands_list[0].alies[1]}`)
-  ) {
-    return message.channel.send(`
-    ${adv}\n***Мои команды:***\n${comands_list
-      .map(
-        (command) =>
-          `============================\n***>Комманда: ***${command.name}\n***>Алтернативный вызов:***${command.alies.map((alie)=>` ${alie} `)}\n***>Описание: ***${command.about}`
-      )
-      .join("\n")}`);
-  } else {
-    message.channel.send(`${err}Такой команды нет :(`);
+
+  if (!prefixMessage === prefix) return;
+
+  for (let com of commands_list) {
+    if (commandMessage === com.name) {
+      com.func(message, serverQueue, argsMessage);
+      return;
+    } else {
+      for (let alies of com.alies) {
+        if (commandMessage === alies) {
+          com.func(message, serverQueue, argsMessage);
+          return;
+        }
+      }
+    }
   }
+  message.channel.send(`${errm}Такой команды нет :(`);
+}
+function help(message) {
+  return message.channel.send(`
+  ${adv}\n***Мои команды:***\n${commands_list
+    .map(
+      (command) =>
+        `============================\n***>Комманда: ***${
+          command.name
+        }\n***>Алтернативный вызов:***${command.alies.map(
+          (alie) => ` ${alie} `
+        )}\n***>Описание: ***${command.about}`
+    )
+    .join("\n")}\n============================`);
 }
 module.exports = { executioner };
