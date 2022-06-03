@@ -1,7 +1,7 @@
-const Discord = require("discord.js");
-const { prefix, token, err, suc, req, adv } = require("./config.json");
+const { prefix, token, errm, suc, req, adv } = require("./config.json");
 const { executioner } = require("./commands.js");
-const client = new Discord.Client();
+const client = require("./bot.js");
+
 client.once("ready", () => {
   console.log("Ready!");
 });
@@ -13,6 +13,7 @@ client.once("disconnect", () => {
 });
 
 client.on("message", async (message) => {
+  
   if (message.author.bot) return;
   if (!message.content.startsWith(prefix)) return;
   executioner(message);

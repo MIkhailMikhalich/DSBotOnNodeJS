@@ -2,3 +2,4 @@ node_modules
 ffmpeg.exe
 ffplay.exe
 ffprobe.exe
+config.json
