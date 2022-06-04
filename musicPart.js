@@ -1,3 +1,4 @@
+const client = require("./bot.js");
 const { errm, suc, req, adv } = require("./config.json");
 const ytdl = require("ytdl-core");
 const youtubesearchapi = require("youtube-search-api");
@@ -13,14 +14,19 @@ async function execute(message, serverQueue, argsMessage) {
       );
     }
      let chechPeople = setInterval(() => {
-      let MemberCount = voiceChannel.members.size;
-      if ((MemberCount <= 1)) {
-        voiceChannel.leave();
-        clearInterval(chechPeople);
-        return message.channel.send(
-          `${adv}В канале более никого не присутсвует, до встречи`
-        );
+      let members = voiceChannel.members.map(member=>member);
+      console.log(client.user.id);
+      console.log(members);
+      for (let member in members){
+        console.log(((toString(member.id) === client.user.id)&&(members.length <= 1)))
       }
+      // if ((members.length <= 1) && (members.GuildMember.includes(client.user.id))) {
+      //   voiceChannel.leave();
+      //   clearInterval(chechPeople);
+      //   return message.channel.send(
+      //     `${adv}В канале более никого не присутсвует, до встречи`
+      //   );
+      // }
     }, 5000);
     const permissions = voiceChannel.permissionsFor(message.client.user);
     if (!permissions.has("CONNECT") || !permissions.has("SPEAK")) {
@@ -72,10 +78,13 @@ async function getInfo(search, message) {
     const songInfo = await ytdl.getInfo(search);
     return songInfo;
   } catch {
-    const res = await youtubesearchapi.GetListByKeyword(search, false, 5);
+
+    const searchList = await youtubesearchapi.GetListByKeyword(search, false, 10);
+    const searchListFiltered = searchList.items.filter(element => element.type === 'video');
+    const res = searchListFiltered.slice(0,5);
     let index = 0;
     message.channel.send(`
-    ${adv}\n${res.items
+    ${adv}\n${res
       .map((song) => `***${++index}***-${song.title}`)
       .join("\n")}\n${req}Выберете нужную из 5 представленных`);
     try {
@@ -104,7 +113,7 @@ async function getInfo(search, message) {
         console.error(err);
       }
       const videoIndex = parseInt(response.content);
-      const songInfo = await ytdl.getInfo(res.items[videoIndex - 1].id);
+      const songInfo = await ytdl.getInfo(res[videoIndex - 1].id);
       return songInfo;
     } catch (err) {
       console.error(err);
