@@ -1,3 +1,4 @@
+const client = require("./bot.js");
 const { errm, suc, req, adv } = require("./config.json");
 const ytdl = require("ytdl-core");
 const youtubesearchapi = require("youtube-search-api");
@@ -12,14 +13,17 @@ async function execute(message, serverQueue, argsMessage) {
         `${errm}${req}Войдите в любой голсовой-канал`
       );
     }
-     let chechPeople = setInterval(() => {
-      let MemberCount = voiceChannel.members.size;
-      if ((MemberCount <= 1)) {
-        voiceChannel.leave();
-        clearInterval(chechPeople);
-        return message.channel.send(
-          `${adv}В канале более никого не присутсвует, до встречи`
-        );
+    let chechPeople = setInterval(() => {
+      let members = voiceChannel.members.map(member => member);
+      for (let member of members) {
+        if ((member.id == client.user.id) && (members.length <= 1)) {
+          setTimeout(() => {
+            clearInterval(chechPeople); message.channel.send(
+              `${adv}В канале более никого не присутсвует, до встречи`
+            );
+            voiceChannel.leave();
+          }, 1000);
+        };
       }
     }, 5000);
     const permissions = voiceChannel.permissionsFor(message.client.user);
@@ -50,7 +54,7 @@ async function execute(message, serverQueue, argsMessage) {
       try {
         var connection = await voiceChannel.join();
         queueContruct.connection = connection;
-        play(message.guild,queueContruct.songs[0]);
+        play(message.guild, queueContruct.songs[0]);
       } catch (err) {
         console.log(err);
         queue.delete(message.guild.id);
@@ -58,7 +62,7 @@ async function execute(message, serverQueue, argsMessage) {
       }
     } else {
       serverQueue.songs.push(song)
-      if(serverQueue.repeat) {serverQueue.savedsongs.push(song)};
+      if (serverQueue.repeat) { serverQueue.savedsongs.push(song) };
       return message.channel.send(
         `${suc}${song.title} была добавлена в очередь!`
       );
@@ -72,16 +76,19 @@ async function getInfo(search, message) {
     const songInfo = await ytdl.getInfo(search);
     return songInfo;
   } catch {
-    const res = await youtubesearchapi.GetListByKeyword(search, false, 5);
+
+    const searchList = await youtubesearchapi.GetListByKeyword(search, false, 10);
+    const searchListFiltered = searchList.items.filter(element => element.type === 'video');
+    const res = searchListFiltered.slice(0, 5);
     let index = 0;
     message.channel.send(`
-    ${adv}\n${res.items
-      .map((song) => `***${++index}***-${song.title}`)
-      .join("\n")}\n${req}Выберете нужную из 5 представленных`);
+    ${adv}\n${res
+        .map((song) => `***${++index}***-${song.title}`)
+        .join("\n")}\n${req}Выберете нужную из 5 представленных`);
     try {
       try {
         var response;
-        const filter = (mes) => mes.content > 0 && mes.content < 6 && mes.author===message.author;
+        const filter = (mes) => mes.content > 0 && mes.content < 6 && mes.author === message.author;
         await message.channel
           .awaitMessages(filter, {
             max: 1,
@@ -104,7 +111,7 @@ async function getInfo(search, message) {
         console.error(err);
       }
       const videoIndex = parseInt(response.content);
-      const songInfo = await ytdl.getInfo(res.items[videoIndex - 1].id);
+      const songInfo = await ytdl.getInfo(res[videoIndex - 1].id);
       return songInfo;
     } catch (err) {
       console.error(err);
@@ -120,7 +127,7 @@ function skip(message, serverQueue) {
   if (!serverQueue) return message.channel.send(`${errm}Нечего пропускать!`);
   serverQueue
   serverQueue.connection.dispatcher.end();
-  
+
 }
 
 function stop(message, serverQueue) {
@@ -148,7 +155,7 @@ function repeat(message, serverQueue) {
       );
     }
     if (!serverQueue) return message.channel.send(`${errm}Нечего повторять!`);
-    serverQueue.savedsongs = serverQueue.songs.map((song)=>song);
+    serverQueue.savedsongs = serverQueue.songs.map((song) => song);
     serverQueue.textChannel.send(`${suc}Повтор включен`);
   }
 }
@@ -163,7 +170,7 @@ function stoprepeat(message, serverQueue) {
   serverQueue.savedsongs = [];
   serverQueue.textChannel.send(`${suc}Повтор выключен`);
 }
-function play(guild,song) {
+function play(guild, song) {
   const serverQueue = queue.get(guild.id);
   console.log(serverQueue);
   if (!song) {
@@ -175,9 +182,11 @@ function play(guild,song) {
     .play(ytdl(song.url))
     .on("finish", () => {
       serverQueue.songs.shift();
-      if (serverQueue.repeat){
-        if (serverQueue.songs.length === 0){
-          serverQueue.songs = serverQueue.savedsongs.map((song)=>song)}};
+      if (serverQueue.repeat) {
+        if (serverQueue.songs.length === 0) {
+          serverQueue.songs = serverQueue.savedsongs.map((song) => song)
+        }
+      };
       play(guild, serverQueue.songs[0]);
     })
     .on("error", (error) => console.error(error));
